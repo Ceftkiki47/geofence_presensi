@@ -1,0 +1,40 @@
+import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
+import 'package:geofence_presensi/screens/HomeScreen.dart';
+import 'package:geofence_presensi/screens/LoginScreen.dart';
+import 'package:geofence_presensi/screens/SplashScreen.dart';
+import 'package:geofence_presensi/screens/create_pin/CreatePinScreen.dart';
+import 'package:geofence_presensi/screens/verify_pin/VerifyPinScreen.dart';
+import 'package:provider/provider.dart';
+
+import 'providers/AuthProvider.dart';
+
+@RoutePage()
+class AppGateScreen extends StatelessWidget {
+  const AppGateScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    if (!auth.isInitialized) {
+      return const SplashScreen();
+    }
+
+    if (!auth.isLoggedIn) {
+      return const LoginScreen();
+    }
+
+    if (!auth.hasPin) {
+      return const CreatePinScreen();
+    }
+
+    if (!auth.pinVerified) {
+      return VerifyPinScreen(
+        contextType: VerifyPinContext.auth,
+      );
+    }
+
+    return const HomeScreen();
+  }
+}
