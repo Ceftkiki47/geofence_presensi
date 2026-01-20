@@ -176,15 +176,16 @@ class ProfileScreen extends StatelessWidget {
               backgroundColor: Colors.red,
             ),
             onPressed: () async {
+              // Tutup dialog terlebih dahulu
+              Navigator.pop(context);
+              
+              // Logout akan mereset state di AuthProvider
+              // AppGate akan otomatis mendeteksi perubahan state
+              // dan menampilkan LoginScreen
               await context.read<AuthProvider>().logout();
-
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginScreen(),
-                ),
-                (_) => false,
-              );
+              
+              // Tidak perlu manual navigation karena AppGate sudah handle
+              // Biarkan AppGate yang mengelola navigasi berdasarkan state
             },
             child: const Text('Logout'),
           ),

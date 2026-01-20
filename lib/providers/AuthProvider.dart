@@ -37,32 +37,22 @@ class AuthProvider extends ChangeNotifier {
   // =======================
   // CHECK LOGIN (APP START)
   // =======================
+  // Catatan: Method ini selalu reset state ke logged out
+  // agar app selalu mulai dari LoginScreen saat restart/refresh
   Future<void> checkLogin() async {
     debugPrint('🔐 checkLogin() START');
 
     final db = await DBHelper.database;
-    final res = await db.query(
-      'users',
-      where: 'isLogin = 1',
-      limit: 1,
-    );
+    
+    // Reset semua isLogin ke 0 untuk memastikan app selalu mulai dari login
+    // Ini mencegah app langsung masuk ke PIN verification saat restart
+    await db.update('users', {'isLogin': 0});
 
-    if (res.isNotEmpty) {
-      final user = res.first;
-
-      _loggedIn = true;
-      _hasPin = user['pin'] != null;
-      _pinVerified = false;
-
-      userEmail = user['email'] as String?;
-      userName = user['nama'] as String?;
-      profileImage = user['profileImage'] as String?;
-
-      debugPrint('🔐 checkLogin(): user ditemukan');
-    } else {
-      _resetState();
-      debugPrint('🔐 checkLogin(): user tidak ditemukan');
-    }
+    // Reset state ke logged out
+    // Ini memastikan AppGate akan menampilkan LoginScreen
+    _resetState();
+    
+    debugPrint('🔐 checkLogin(): State di-reset, app akan mulai dari LoginScreen');
 
     _initialized = true;
     notifyListeners();
@@ -208,6 +198,7 @@ class AuthProvider extends ChangeNotifier {
     _loggedIn = false;
     _hasPin = false;
     _pinVerified = false;
+    _initialized = true;
 
     userEmail = null;
     userName = null;
