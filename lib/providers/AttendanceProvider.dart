@@ -88,12 +88,19 @@ class AttendanceProvider extends ChangeNotifier {
   }
 
   bool canSubmitIzin(String email) {
-    return todayStatus(email) == DailyAttendanceStatus.none;
+    final status = todayStatus(email);
+    return status == DailyAttendanceStatus.none;
   }
 
   bool canSubmitAttendance(String email) {
-    return todayStatus(email) == DailyAttendanceStatus.none;
+    final status = todayStatus(email);
+    return status == DailyAttendanceStatus.none;
   }
+
+  bool isIzinTidakHadirToday(String email) {
+    return todayStatus(email) == DailyAttendanceStatus.izinTidakHadir;
+  }
+
 
   /// =======================
   /// WAKTU ABSENSI
@@ -155,6 +162,9 @@ class AttendanceProvider extends ChangeNotifier {
       if (getAttendanceTimeStatus(DateTime.now()) ==
           AttendanceTimeStatus.alpha) {
         return AttendanceAccessStatus.alpha;
+      }
+      if (isIzinTidakHadirToday(email)) {
+        return AttendanceAccessStatus.izinLocked;
       }
 
       return AttendanceAccessStatus.allowed;
