@@ -11,8 +11,8 @@ import '../services/GoogleSheetService.dart';
 /// ENUM
 /// =======================
 enum AttendanceTimeStatus {
-  belumWaktu,
-  hadir,
+  datangLebihAwal,
+  tepatWaktu,
   telat,
   hadirSiang,
   alpha,
@@ -106,12 +106,47 @@ class AttendanceProvider extends ChangeNotifier {
   /// WAKTU ABSENSI
   /// =======================
   AttendanceTimeStatus getAttendanceTimeStatus(DateTime now) {
-    if (now.hour < 6) return AttendanceTimeStatus.belumWaktu;
-    if (now.hour < 15) return AttendanceTimeStatus.hadir;
-    if (now.hour < 16) return AttendanceTimeStatus.telat;
-    if (now.hour < 12) return AttendanceTimeStatus.hadirSiang;
+    final hour = now.hour;
+    final minute = now.minute;
+    final totalMinute = hour * 60 + minute;
+
+    if (totalMinute < 6 * 60) {
+      return AttendanceTimeStatus.alpha;
+    }
+    if (totalMinute <= 7 * 60 + 55) {
+      return AttendanceTimeStatus.datangLebihAwal;
+    }
+    if (totalMinute <= 8 * 60 + 5) {
+      return AttendanceTimeStatus.tepatWaktu;
+    }
+    if (totalMinute <= 21 * 60 + 50) {
+      return AttendanceTimeStatus.telat;
+    }
     return AttendanceTimeStatus.alpha;
   }
+  
+  /// =======================
+  /// MAPPING STATUS
+  /// ======================= 
+  DailyAttendanceStatus? mapToDailyStatus(
+    AttendanceTimeStatus status,
+  ) {
+    switch (status) {
+      case AttendanceTimeStatus.datangLebihAwal:
+      case AttendanceTimeStatus.tepatWaktu:
+        return DailyAttendanceStatus.hadir;
+
+      case AttendanceTimeStatus.telat:
+        return DailyAttendanceStatus.telat;
+
+      case AttendanceTimeStatus.hadirSiang:
+        return DailyAttendanceStatus.hadirSiang;
+
+      case AttendanceTimeStatus.alpha:
+        return DailyAttendanceStatus.alpha;
+    }
+  }
+
 
   /// =======================
   /// LOKASI
@@ -153,18 +188,23 @@ class AttendanceProvider extends ChangeNotifier {
       if (!isLocationReady) {
         return AttendanceAccessStatus.locationNotReady;
       }
+
       if (!isInsideZone) {
         return AttendanceAccessStatus.outsideZone;
       }
+
       if (!canSubmitAttendance(email)) {
         return AttendanceAccessStatus.alreadySubmitted;
       }
-      if (getAttendanceTimeStatus(DateTime.now()) ==
-          AttendanceTimeStatus.alpha) {
+
+      final timeStatus = getAttendanceTimeStatus(DateTime.now());
+
+      if (timeStatus == AttendanceTimeStatus.alpha) {
         return AttendanceAccessStatus.alpha;
       }
-      if (isIzinTidakHadirToday(email)) {
-        return AttendanceAccessStatus.izinLocked;
+
+      if (timeStatus == AttendanceTimeStatus.telat) {
+        return AttendanceAccessStatus.allowed; // akan trigger popup
       }
 
       return AttendanceAccessStatus.allowed;
@@ -174,6 +214,7 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
+
   /// =======================
   /// SUBMIT ABSENSI
   /// =======================
@@ -181,20 +222,18 @@ class AttendanceProvider extends ChangeNotifier {
     required File image,
     required String email,
     required String nama,
+    String? keteranganTelat,
+    File? dokumentasiTelat,
   }) async {
     if (!canSubmitAttendance(email)) return false;
 
     final now = DateTime.now();
     final timeStatus = getAttendanceTimeStatus(now);
+    final dailyStatus = mapToDailyStatus(timeStatus);
 
-    final map = {
-      AttendanceTimeStatus.hadir: DailyAttendanceStatus.hadir,
-      AttendanceTimeStatus.telat: DailyAttendanceStatus.telat,
-      AttendanceTimeStatus.hadirSiang: DailyAttendanceStatus.hadirSiang,
-    };
-
-    final status = map[timeStatus];
-    if (status == null) return false;
+    if (dailyStatus == null || dailyStatus == DailyAttendanceStatus.alpha) {
+      return false;
+    }
 
     isLoading = true;
     notifyListeners();
@@ -205,14 +244,16 @@ class AttendanceProvider extends ChangeNotifier {
         nama: nama,
         tanggal: DateFormat('yyyy-MM-dd').format(now),
         jam: DateFormat('HH:mm:ss').format(now),
-        status: status.name,
+        status: dailyStatus.name,
         latitude: userLocation?.latitude ?? 0,
         longitude: userLocation?.longitude ?? 0,
         zona: isInsideZone ? 'DALAM' : 'LUAR',
-        keterangan: '-',
+        keterangan: timeStatus == AttendanceTimeStatus.telat
+            ? keteranganTelat ?? 'TELAT TANPA KETERANGAN'
+            : '-',
       );
 
-      _dailyStatus[email] = status;
+      _dailyStatus[email] = dailyStatus;
       _dailyDate[email] = now;
 
       return true;
@@ -221,6 +262,7 @@ class AttendanceProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
   /// =======================
   /// IZIN

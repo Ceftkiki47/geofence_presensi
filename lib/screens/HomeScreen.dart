@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../providers/AttendanceProvider.dart';
 import '../providers/AuthProvider.dart';
 import '../widgets/IzinTidakHadirDialog.dart';
+import '../widgets/izinTelatDialog.dart';
 import 'PinEntryScreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -283,14 +284,32 @@ class _HomeScreenState extends State<HomeScreen> {
     final email = auth.userEmail;
     if (email == null) return;
 
+    /// 🔒 CEK KUNCI HARIAN
+    if (!attendance.canSubmitAttendance(email) &&
+        !attendance.canSubmitIzin(email)) {
+      _snack(context, 'Anda sudah melakukan absensi hari ini');
+      return;
+    }
 
-  /// 🔒 CEK KUNCI HARIAN
-  if (!attendance.canSubmitAttendance(email) &&
-      !attendance.canSubmitIzin(email)) {
-    _snack(context, 'Anda sudah melakukan absensi hari ini');
-    return;
-  }
-  
+    /// ⏰ CEK STATUS WAKTU
+    final timeStatus =
+        attendance.getAttendanceTimeStatus(DateTime.now());
+
+    /// 🟠 TELAT → IZIN TELAT
+    if (timeStatus == AttendanceTimeStatus.telat) {
+      showDialog(
+        context: context,
+        builder: (_) => const IzinTelatDialog(),
+      );
+      return;
+    }
+
+    /// 🔴 ALPHA
+    if (timeStatus == AttendanceTimeStatus.alpha) {
+      _snack(context, 'Anda dinyatakan Alpha!');
+      return;
+    }
+
     /// =======================
     /// IZIN
     /// =======================
@@ -304,11 +323,12 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     /// =======================
-    /// HADIR
+    /// HADIR NORMAL
     /// =======================
-    final status = await attendance.prepareAbsensi(email);
+    final accessStatus =
+        await attendance.prepareAbsensi(email);
 
-    switch (status) {
+    switch (accessStatus) {
       case AttendanceAccessStatus.allowed:
         showModalBottomSheet(
           context: context,
@@ -339,6 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
         break;
     }
   }
+
 
   /// =======================
   /// IZIN
