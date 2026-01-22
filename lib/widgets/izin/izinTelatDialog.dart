@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/AttendanceProvider.dart';
-import '../providers/AuthProvider.dart';
-import '../widgets/IzinTidakHadirDialog.dart';
-import '../widgets/izinHadirSiangDialog.dart';
+import '../../providers/AttendanceProvider.dart';
+import '../../providers/AuthProvider.dart';
+import '../../widgets/izin/IzinTidakHadirDialog.dart';
+import '../../widgets/izin/izinHadirSiangDialog.dart';
 
 class IzinTelatDialog extends StatefulWidget {
   const IzinTelatDialog({super.key});

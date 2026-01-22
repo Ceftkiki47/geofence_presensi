@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/AttendanceProvider.dart';
-import '../providers/AuthProvider.dart';
+import '../../providers/AttendanceProvider.dart';
+import '../../providers/AuthProvider.dart';
 
 class HadirSiangDialog extends StatefulWidget {
   const HadirSiangDialog({super.key});

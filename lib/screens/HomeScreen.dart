@@ -1,14 +1,15 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:geofence_presensi/screens/ProfileScreen.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/AttendanceProvider.dart';
 import '../providers/AuthProvider.dart';
-import '../widgets/IzinTidakHadirDialog.dart';
-import '../widgets/izinTelatDialog.dart';
-import 'PinEntryScreen.dart';
+import '../providers/AttendanceProvider.dart';
+import '../screens/ProfileScreen.dart';
+import '../screens/PinEntryScreen.dart';
+import '../widgets/izin/IzinTidakHadirDialog.dart';
+import '../widgets/izin/izinTelatDialog.dart';
+import '../widgets/task/TaskDialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,90 +21,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool isHadir = true;
 
-  /// =======================
-  /// LABEL IZIN
-  /// =======================
-  String izinLabel(IzinType type) {
-    switch (type) {
-      case IzinType.telat:
-        return 'Telat Hadir';
-      case IzinType.hadirSiang:
-        return 'Hadir Siang';
-      case IzinType.tidakHadir:
-        return 'Tidak Hadir';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
     final auth = context.watch<AuthProvider>();
+    final attendance = context.watch<AttendanceProvider>();
+    final now = DateTime.now();
+
+    final email = auth.userEmail ?? '';
+    final canAccessFingerprint = attendance.canAccessFingerprint(email);
 
     return Scaffold(
       body: Stack(
         children: [
-          _buildMainUI(context, now, auth),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _bottomInfoBar(context),
-          ),
+          _mainUI(context, auth, attendance, now, canAccessFingerprint),
+          _bottomInfoBar(context),
         ],
-      ),
-    );
-  }
-
-  /// =======================
-  /// BOTTOM INFO
-  /// =======================
-  Widget _bottomInfoBar(BuildContext context) {
-    final attendance = context.watch<AttendanceProvider>();
-    final auth = context.watch<AuthProvider>();
-
-    final status = attendance.todayStatus(auth.userEmail ?? '');
-
-    String label;
-    Color color;
-
-    switch (status) {
-      case DailyAttendanceStatus.hadir:
-        label = 'Anda sudah HADIR hari ini';
-        color = Colors.green;
-        break;
-      case DailyAttendanceStatus.telat:
-        label = 'Anda TELAT hari ini';
-        color = Colors.orange;
-        break;
-      case DailyAttendanceStatus.hadirSiang:
-        label = 'Anda HADIR SIANG hari ini';
-        color = Colors.blue;
-        break;
-      case DailyAttendanceStatus.izinTidakHadir:
-        label = 'Anda IZIN hari ini';
-        color = Colors.deepOrange;
-        break;
-      case DailyAttendanceStatus.alpha:
-        label = 'Status ALPHA hari ini';
-        color = Colors.red;
-        break;
-      default:
-        label = 'Belum melakukan absensi';
-        color = Colors.grey;
-    }
-
-    return SafeArea(
-      child: Container(
-        height: 48,
-        alignment: Alignment.center,
-        color: color.withOpacity(0.12),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
       ),
     );
   }
@@ -111,10 +43,12 @@ class _HomeScreenState extends State<HomeScreen> {
   /// =======================
   /// MAIN UI
   /// =======================
-  Widget _buildMainUI(
+  Widget _mainUI(
     BuildContext context,
-    DateTime now,
     AuthProvider auth,
+    AttendanceProvider attendance,
+    DateTime now,
+    bool canAccessFingerprint,
   ) {
     return Container(
       decoration: const BoxDecoration(
@@ -162,10 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? FileImage(File(auth.profileImage!))
                         : null,
                     child: auth.profileImage == null
-                        ? const Icon(
-                            Icons.person,
-                            color: Color(0xFF0FA3D1),
-                          )
+                        ? const Icon(Icons.person, color: Color(0xFF0FA3D1))
                         : null,
                   ),
                 ),
@@ -205,53 +136,39 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text(
                     'Pilih Kehadiran',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 16),
 
-                  /// SWITCH
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      children: [
-                        _tabButton('Hadir', isHadir, () {
-                          setState(() => isHadir = true);
-                        }),
-                        _tabButton('Izin', !isHadir, () {
-                          setState(() => isHadir = false);
-                        }),
-                      ],
-                    ),
-                  ),
+                  /// TAB
+                  _tabSwitcher(),
 
                   const Spacer(),
 
+                  /// FINGERPRINT
                   GestureDetector(
-                    onTap: () => _onFingerprintTap(context),
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF6EE7F9),
-                            Color(0xFF0FA3D1),
-                          ],
+                    onTap: canAccessFingerprint
+                        ? () => _onFingerprintTap(context)
+                        : null,
+                    child: Opacity(
+                      opacity: canAccessFingerprint ? 1 : 0.4,
+                      child: Container(
+                        width: 120,
+                        height: 120,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF6EE7F9),
+                              Color(0xFF0FA3D1),
+                            ],
+                          ),
                         ),
-                      ),
-                      child: const Icon(
-                        Icons.fingerprint,
-                        size: 64,
-                        color: Colors.white,
+                        child: const Icon(
+                          Icons.fingerprint,
+                          size: 64,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -259,9 +176,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 12),
 
                   Text(
-                    isHadir
-                        ? 'Absensi akan mengecek lokasi Anda'
-                        : 'Ajukan Izin',
+                    canAccessFingerprint
+                        ? 'Tekan untuk melanjutkan'
+                        : 'Belum waktunya absensi',
                     style: const TextStyle(
                       color: Color(0xFF0FA3D1),
                       fontWeight: FontWeight.bold,
@@ -276,202 +193,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _showTaskAfterCheckout(
+  BuildContext context,
+  File image,
+) {
+  final auth = context.read<AuthProvider>();
+  final attendance = context.read<AttendanceProvider>();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => TaskBottomSheet(
+      onSubmit: (tasks) async {
+        await attendance.submitCheckout(
+          image: image,
+          email: auth.userEmail!,
+          nama: auth.userName!,
+          tasks: tasks,
+        );
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Absensi pulang berhasil')),
+          );
+        }
+      },
+    ),
+  );
+}
+
+
   /// =======================
-  /// FINGERPRINT HANDLER
+  /// FINGERPRINT FLOW
   /// =======================
   Future<void> _onFingerprintTap(BuildContext context) async {
     final auth = context.read<AuthProvider>();
     final attendance = context.read<AttendanceProvider>();
 
-    final email = auth.userEmail;
-    if (email == null) return;
-
-    /// 🔒 KUNCI HARIAN
-    if (!attendance.canSubmitAttendance(email) &&
-        !attendance.canSubmitIzin(email)) {
-      _snack(context, 'Anda sudah melakukan absensi hari ini');
-      return;
-    }
-
-    final timeStatus =
-        attendance.getAttendanceTimeStatus(DateTime.now());
-
-    /// ⏰ TELAT / ALPHA
-    if (_handleTimeBasedFlow(context, timeStatus)) return;
-
-    /// 🟢 HADIR / IZIN
-    await _handleNormalFlow(context, attendance, auth);
-  }
-
-  /// =======================
-  /// TIME DISPATCHER
-  /// =======================
-  bool _handleTimeBasedFlow(
-    BuildContext context,
-    AttendanceTimeStatus status,
-  ) {
-    switch (status) {
-      case AttendanceTimeStatus.telat:
-        showDialog(
-          context: context,
-          builder: (_) => const IzinTelatDialog(),
-        );
-        return true;
-
-      case AttendanceTimeStatus.alpha:
-        _snack(context, 'Anda dinyatakan Alpha!');
-        return true;
-
-      default:
-        return false;
-    }
-  }
-
-  /// =======================
-  /// NORMAL FLOW
-  /// =======================
-  Future<void> _handleNormalFlow(
-    BuildContext context,
-    AttendanceProvider attendance,
-    AuthProvider auth,
-  ) async {
     final email = auth.userEmail!;
+    final nama = auth.userName!;
 
-    if (!isHadir) {
-      if (!attendance.canSubmitIzin(email)) {
-        _snack(context, 'Izin tidak dapat diajukan hari ini');
-        return;
-      }
-      _showIzinSelector(context);
-      return;
-    }
+    final access = await attendance.prepareAbsensi(email);
 
-    final accessStatus = await attendance.prepareAbsensi(email);
-
-    switch (accessStatus) {
-      case AttendanceAccessStatus.allowed:
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => const PinEntryScreen(),
-        );
-        break;
-
-      case AttendanceAccessStatus.outsideZone:
-        _snack(context, 'Anda berada di luar area absensi');
-        break;
-
-      case AttendanceAccessStatus.locationNotReady:
-        _snack(context, 'GPS belum aktif');
-        break;
-
-      case AttendanceAccessStatus.alreadySubmitted:
-        _snack(context, 'Anda sudah absensi hari ini');
-        break;
-
-      case AttendanceAccessStatus.izinLocked:
-        _snack(context, 'Anda izin tidak hadir hari ini');
-        break;
-
-      case AttendanceAccessStatus.alpha:
-        _snack(context, 'Waktu absensi telah berakhir');
-        break;
-
-      case AttendanceAccessStatus.izinLocked:
-        _snack(context, 'Silakan ajukan izin telat terlebih dahulu');
-        break;
-
+    if (access == AttendanceAccessStatus.allowed) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const PinEntryScreen(),
+      );
+    } else if (access == AttendanceAccessStatus.izinLocked) {
+      showDialog(
+        context: context,
+        builder: (_) => const IzinTelatDialog(),
+      );
+    } else {
+      _snack(context, access.name);
     }
   }
 
   /// =======================
-  /// IZIN SELECTOR
+  /// BOTTOM INFO
   /// =======================
-  void _showIzinSelector(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: const Icon(Icons.event_busy),
-            title: const Text('Tidak Hadir'),
-            onTap: () {
-              Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (_) => IzinTidakHadirDialog(
-                  userEmail:
-                      context.read<AuthProvider>().userEmail!,
-                ),
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.access_time),
-            title: const Text('Telat / Hadir Siang'),
-            onTap: () {
-              Navigator.pop(context);
-              _showIzinRingan(context);
-            },
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _bottomInfoBar(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final attendance = context.watch<AttendanceProvider>();
+    final status = attendance.todayStatus(auth.userEmail ?? '');
 
-  void _showIzinRingan(BuildContext context) {
-    final reasonCtrl = TextEditingController();
-    IzinType selected = IzinType.telat;
+    String label;
+    Color color;
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Izin Kehadiran'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<IzinType>(
-              value: selected,
-              items: [IzinType.telat, IzinType.hadirSiang]
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(izinLabel(e)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) => selected = v!,
-            ),
-            TextField(
-              controller: reasonCtrl,
-              decoration:
-                  const InputDecoration(labelText: 'Alasan'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final auth = context.read<AuthProvider>();
+    switch (status) {
+      case DailyAttendanceStatus.hadir:
+        label = 'Anda sudah HADIR';
+        color = Colors.green;
+        break;
+      case DailyAttendanceStatus.telat:
+        label = 'Anda TELAT';
+        color = Colors.orange;
+        break;
+      case DailyAttendanceStatus.hadirSiang:
+        label = 'HADIR SIANG';
+        color = Colors.blue;
+        break;
+      case DailyAttendanceStatus.izinTidakHadir:
+        label = 'IZIN';
+        color = Colors.deepOrange;
+        break;
+      case DailyAttendanceStatus.alpha:
+        label = 'ALPHA';
+        color = Colors.red;
+        break;
+      case DailyAttendanceStatus.pulang:
+      case DailyAttendanceStatus.lembur:
+        label = 'ANDA SUDAH PULANG';
+        color = Colors.teal;
+        break;
+      default:
+        label = 'Belum absensi';
+        color = Colors.grey;
+    }
 
-              await context.read<AttendanceProvider>().submitIzin(
-                    type: selected,
-                    alasan: reasonCtrl.text,
-                    email: auth.userEmail!,
-                    nama: auth.userName!,
-                  );
-
-              Navigator.pop(context);
-            },
-            child: const Text('Kirim'),
-          ),
-        ],
+    return SafeArea(
+      child: Container(
+        height: 48,
+        alignment: Alignment.center,
+        color: color.withOpacity(0.12),
+        child: Text(label,
+            style: TextStyle(color: color, fontWeight: FontWeight.bold)),
       ),
     );
   }
@@ -479,27 +309,37 @@ class _HomeScreenState extends State<HomeScreen> {
   /// =======================
   /// UI UTIL
   /// =======================
-  Widget _tabButton(
-    String text,
-    bool active,
-    VoidCallback onTap,
-  ) {
+  Widget _tabSwitcher() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        children: [
+          _tab('Hadir', isHadir, () => setState(() => isHadir = true)),
+          _tab('Izin', !isHadir, () => setState(() => isHadir = false)),
+        ],
+      ),
+    );
+  }
+
+  Widget _tab(String text, bool active, VoidCallback onTap) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: 40,
           decoration: BoxDecoration(
-            color:
-                active ? const Color(0xFF6EE7F9) : Colors.transparent,
+            color: active ? const Color(0xFF6EE7F9) : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Center(
             child: Text(
               text,
               style: TextStyle(
-                color:
-                    active ? Colors.white : Colors.black54,
+                color: active ? Colors.white : Colors.black54,
                 fontWeight: FontWeight.bold,
               ),
             ),

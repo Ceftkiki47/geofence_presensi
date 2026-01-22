@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../providers/AttendanceProvider.dart';
+import '../../providers/AttendanceProvider.dart';
 
 class IzinTidakHadirDialog extends StatefulWidget {
   final String userEmail;
