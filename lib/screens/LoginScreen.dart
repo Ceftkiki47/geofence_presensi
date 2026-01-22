@@ -112,6 +112,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: auth.isLoading
                       ? null
                       : () async {
+                          if (emailCtrl.text.trim().isEmpty ||
+                              passCtrl.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Lengkapi email dan password terlebih dahulu'),
+                              ),
+                            );
+                            return;
+                          }
+
                           final success = await auth.login(
                             emailCtrl.text.trim(),
                             passCtrl.text.trim(),
@@ -124,7 +134,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             );
                           }
-                          // ❗ TIDAK ADA NAVIGASI
                         },
                   child: auth.isLoading
                       ? const CircularProgressIndicator(color: Colors.white)

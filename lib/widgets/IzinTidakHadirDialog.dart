@@ -44,14 +44,12 @@ class _IzinTidakHadirDialogState extends State<IzinTidakHadirDialog> {
       initialDate: now,
       firstDate: now,
       lastDate: now.add(const Duration(days: 30)),
-      locale: const Locale('id', 'ID'),
+      locale: const Locale('id'),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
+          data: ThemeData.light().copyWith(
             colorScheme: const ColorScheme.light(
               primary: Colors.blue,
-              onPrimary: Colors.white,
-              onSurface: Colors.black,
             ),
           ),
           child: child!,
@@ -63,7 +61,6 @@ class _IzinTidakHadirDialogState extends State<IzinTidakHadirDialog> {
       setState(() => _selectedDate = picked);
     }
   }
-
 
   /// =======================
   /// PICK DOCUMENT

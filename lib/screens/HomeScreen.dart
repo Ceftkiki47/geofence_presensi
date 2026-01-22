@@ -8,7 +8,6 @@ import '../providers/AttendanceProvider.dart';
 import '../providers/AuthProvider.dart';
 import '../widgets/IzinTidakHadirDialog.dart';
 import '../widgets/izinTelatDialog.dart';
-import '../widgets/izinHadirSiangDialog.dart';
 import 'PinEntryScreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -378,6 +377,11 @@ class _HomeScreenState extends State<HomeScreen> {
       case AttendanceAccessStatus.alpha:
         _snack(context, 'Waktu absensi telah berakhir');
         break;
+
+      case AttendanceAccessStatus.izinLocked:
+        _snack(context, 'Silakan ajukan izin telat terlebih dahulu');
+        break;
+
     }
   }
 
@@ -406,75 +410,71 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.access_time),
-            title: const Text('Hadir Masuk Siang'),
+            title: const Text('Telat / Hadir Siang'),
             onTap: () {
               Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (_) => const HadirSiangDialog(),
-              );
+              _showIzinRingan(context);
             },
           ),
-
         ],
       ),
     );
   }
 
-  // void _showIzinRingan(BuildContext context) {
-  //   final reasonCtrl = TextEditingController();
-  //   IzinType selected = IzinType.telat;
+  void _showIzinRingan(BuildContext context) {
+    final reasonCtrl = TextEditingController();
+    IzinType selected = IzinType.telat;
 
-  //   showDialog(
-  //     context: context,
-  //     builder: (_) => AlertDialog(
-  //       title: const Text('Izin Kehadiran'),
-  //       content: Column(
-  //         mainAxisSize: MainAxisSize.min,
-  //         children: [
-  //           DropdownButtonFormField<IzinType>(
-  //             value: selected,
-  //             items: [IzinType.telat, IzinType.hadirSiang]
-  //                 .map(
-  //                   (e) => DropdownMenuItem(
-  //                     value: e,
-  //                     child: Text(izinLabel(e)),
-  //                   ),
-  //                 )
-  //                 .toList(),
-  //             onChanged: (v) => selected = v!,
-  //           ),
-  //           TextField(
-  //             controller: reasonCtrl,
-  //             decoration:
-  //                 const InputDecoration(labelText: 'Alasan'),
-  //           ),
-  //         ],
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.pop(context),
-  //           child: const Text('Batal'),
-  //         ),
-  //         ElevatedButton(
-  //           onPressed: () async {
-  //             final auth = context.read<AuthProvider>();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Izin Kehadiran'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<IzinType>(
+              value: selected,
+              items: [IzinType.telat, IzinType.hadirSiang]
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(izinLabel(e)),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => selected = v!,
+            ),
+            TextField(
+              controller: reasonCtrl,
+              decoration:
+                  const InputDecoration(labelText: 'Alasan'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final auth = context.read<AuthProvider>();
 
-  //             await context.read<AttendanceProvider>().submitIzin(
-  //                   type: selected,
-  //                   alasan: reasonCtrl.text,
-  //                   email: auth.userEmail!,
-  //                   nama: auth.userName!,
-  //                 );
+              await context.read<AttendanceProvider>().submitIzin(
+                    type: selected,
+                    alasan: reasonCtrl.text,
+                    email: auth.userEmail!,
+                    nama: auth.userName!,
+                  );
 
-  //             Navigator.pop(context);
-  //           },
-  //           child: const Text('Kirim'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+              Navigator.pop(context);
+            },
+            child: const Text('Kirim'),
+          ),
+        ],
+      ),
+    );
+  }
 
   /// =======================
   /// UI UTIL

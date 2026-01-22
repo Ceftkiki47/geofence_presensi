@@ -111,20 +111,20 @@ class AttendanceProvider extends ChangeNotifier {
     final minute = now.minute;
     final totalMinute = hour * 60 + minute;
 
-    if (totalMinute > 7 * 60) {
-      return AttendanceTimeStatus.alpha;
-    }
     if (totalMinute <= 7 * 60 + 55) {
       return AttendanceTimeStatus.datangLebihAwal;
     }
-    if (totalMinute <= 8 * 60 + 5) {
+    if (totalMinute <= 12 * 60 + 5) {
       return AttendanceTimeStatus.tepatWaktu;
     }
-    if (totalMinute <= 2 * 60 + 50) {
+    if (totalMinute <= 12 * 60 + 50) {
       return AttendanceTimeStatus.telat;
     }
-    return AttendanceTimeStatus.alpha;
-  }
+    if (totalMinute <= 13 * 60) {
+      return AttendanceTimeStatus.hadirSiang;
+    }
+      return AttendanceTimeStatus.alpha;
+    }
   
   /// =======================
   /// MAPPING STATUS
@@ -205,7 +205,7 @@ class AttendanceProvider extends ChangeNotifier {
       }
 
       if (timeStatus == AttendanceTimeStatus.telat) {
-        return AttendanceAccessStatus.allowed; // akan trigger popup
+        return AttendanceAccessStatus.izinLocked; // akan trigger popup
       }
 
       return AttendanceAccessStatus.allowed;
