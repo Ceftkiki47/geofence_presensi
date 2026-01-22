@@ -8,6 +8,7 @@ import '../providers/AttendanceProvider.dart';
 import '../providers/AuthProvider.dart';
 import '../widgets/IzinTidakHadirDialog.dart';
 import '../widgets/izinTelatDialog.dart';
+import '../widgets/izinHadirSiangDialog.dart';
 import 'PinEntryScreen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -15,7 +16,7 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
-} 
+}
 
 class _HomeScreenState extends State<HomeScreen> {
   bool isHadir = true;
@@ -38,30 +39,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final auth = context.watch<AuthProvider>();
-    final attendance = context.watch<AttendanceProvider>();
 
     return Scaffold(
       body: Stack(
         children: [
           _buildMainUI(context, now, auth),
-          
-        Positioned(
-        left: 0,
-        right: 0,
-        bottom: 0,
-        child: _bottomInfoBar(context),
-      ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _bottomInfoBar(context),
+          ),
         ],
       ),
     );
   }
 
+  /// =======================
+  /// BOTTOM INFO
+  /// =======================
   Widget _bottomInfoBar(BuildContext context) {
     final attendance = context.watch<AttendanceProvider>();
     final auth = context.watch<AuthProvider>();
 
-    final status =
-        attendance.todayStatus(auth.userEmail ?? '');
+    final status = attendance.todayStatus(auth.userEmail ?? '');
 
     String label;
     Color color;
@@ -95,8 +96,8 @@ class _HomeScreenState extends State<HomeScreen> {
     return SafeArea(
       child: Container(
         height: 48,
-        color: color.withOpacity(0.1),
         alignment: Alignment.center,
+        color: color.withOpacity(0.12),
         child: Text(
           label,
           style: TextStyle(
@@ -107,7 +108,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   /// =======================
   /// MAIN UI
@@ -151,20 +151,23 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const ProfileScreen(),
+                      ),
                     );
-                  },                    
+                  },
                   child: CircleAvatar(
                     radius: 22,
                     backgroundColor: Colors.white,
                     backgroundImage: auth.profileImage != null
-                    ? FileImage(File(auth.profileImage!))
-                    : null,
+                        ? FileImage(File(auth.profileImage!))
+                        : null,
                     child: auth.profileImage == null
-                    ? const Icon(
-                      Icons.person,
-                      color: Color(0xFF0FA3D1),)
-                    :null,
+                        ? const Icon(
+                            Icons.person,
+                            color: Color(0xFF0FA3D1),
+                          )
+                        : null,
                   ),
                 ),
               ],
@@ -275,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// =======================
-  /// FINGERPRINT HANDLER (FINAL)
+  /// FINGERPRINT HANDLER
   /// =======================
   Future<void> _onFingerprintTap(BuildContext context) async {
     final auth = context.read<AuthProvider>();
@@ -284,35 +287,57 @@ class _HomeScreenState extends State<HomeScreen> {
     final email = auth.userEmail;
     if (email == null) return;
 
-    /// 🔒 CEK KUNCI HARIAN
+    /// 🔒 KUNCI HARIAN
     if (!attendance.canSubmitAttendance(email) &&
         !attendance.canSubmitIzin(email)) {
       _snack(context, 'Anda sudah melakukan absensi hari ini');
       return;
     }
 
-    /// ⏰ CEK STATUS WAKTU
     final timeStatus =
         attendance.getAttendanceTimeStatus(DateTime.now());
 
-    /// 🟠 TELAT → IZIN TELAT
-    if (timeStatus == AttendanceTimeStatus.telat) {
-      showDialog(
-        context: context,
-        builder: (_) => const IzinTelatDialog(),
-      );
-      return;
-    }
+    /// ⏰ TELAT / ALPHA
+    if (_handleTimeBasedFlow(context, timeStatus)) return;
 
-    /// 🔴 ALPHA
-    if (timeStatus == AttendanceTimeStatus.alpha) {
-      _snack(context, 'Anda dinyatakan Alpha!');
-      return;
-    }
+    /// 🟢 HADIR / IZIN
+    await _handleNormalFlow(context, attendance, auth);
+  }
 
-    /// =======================
-    /// IZIN
-    /// =======================
+  /// =======================
+  /// TIME DISPATCHER
+  /// =======================
+  bool _handleTimeBasedFlow(
+    BuildContext context,
+    AttendanceTimeStatus status,
+  ) {
+    switch (status) {
+      case AttendanceTimeStatus.telat:
+        showDialog(
+          context: context,
+          builder: (_) => const IzinTelatDialog(),
+        );
+        return true;
+
+      case AttendanceTimeStatus.alpha:
+        _snack(context, 'Anda dinyatakan Alpha!');
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
+  /// =======================
+  /// NORMAL FLOW
+  /// =======================
+  Future<void> _handleNormalFlow(
+    BuildContext context,
+    AttendanceProvider attendance,
+    AuthProvider auth,
+  ) async {
+    final email = auth.userEmail!;
+
     if (!isHadir) {
       if (!attendance.canSubmitIzin(email)) {
         _snack(context, 'Izin tidak dapat diajukan hari ini');
@@ -322,11 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    /// =======================
-    /// HADIR NORMAL
-    /// =======================
-    final accessStatus =
-        await attendance.prepareAbsensi(email);
+    final accessStatus = await attendance.prepareAbsensi(email);
 
     switch (accessStatus) {
       case AttendanceAccessStatus.allowed:
@@ -360,9 +381,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
   /// =======================
-  /// IZIN
+  /// IZIN SELECTOR
   /// =======================
   void _showIzinSelector(BuildContext context) {
     showModalBottomSheet(
@@ -386,80 +406,79 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           ListTile(
             leading: const Icon(Icons.access_time),
-            title: const Text('Telat / Hadir Siang'),
+            title: const Text('Hadir Masuk Siang'),
             onTap: () {
               Navigator.pop(context);
-              _showIzinRingan(context);
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showIzinRingan(BuildContext context) {
-    final reasonCtrl = TextEditingController();
-    IzinType selected = IzinType.telat;
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Izin Kehadiran'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<IzinType>(
-              value: selected,
-              items: [IzinType.telat, IzinType.hadirSiang]
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e,
-                      child: Text(izinLabel(e)),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (v) => selected = v!,
-            ),
-            TextField(
-              controller: reasonCtrl,
-              decoration: const InputDecoration(labelText: 'Alasan'),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final auth = context.read<AuthProvider>();
-
-              /// VALIDASI USER
-              if (auth.userEmail == null || auth.userName == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Data user tidak lengkap')),
-                );
-                return;
-              }
-
-              await context.read<AttendanceProvider>().submitIzin(
-                type: selected,
-                alasan: reasonCtrl.text,
-                email: auth.userEmail!,
-                nama: auth.userName!,
+              showDialog(
+                context: context,
+                builder: (_) => const HadirSiangDialog(),
               );
-
-              Navigator.pop(context);
             },
-            child: const Text('Kirim'),
           ),
+
         ],
       ),
     );
   }
 
+  // void _showIzinRingan(BuildContext context) {
+  //   final reasonCtrl = TextEditingController();
+  //   IzinType selected = IzinType.telat;
 
+  //   showDialog(
+  //     context: context,
+  //     builder: (_) => AlertDialog(
+  //       title: const Text('Izin Kehadiran'),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         children: [
+  //           DropdownButtonFormField<IzinType>(
+  //             value: selected,
+  //             items: [IzinType.telat, IzinType.hadirSiang]
+  //                 .map(
+  //                   (e) => DropdownMenuItem(
+  //                     value: e,
+  //                     child: Text(izinLabel(e)),
+  //                   ),
+  //                 )
+  //                 .toList(),
+  //             onChanged: (v) => selected = v!,
+  //           ),
+  //           TextField(
+  //             controller: reasonCtrl,
+  //             decoration:
+  //                 const InputDecoration(labelText: 'Alasan'),
+  //           ),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: const Text('Batal'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () async {
+  //             final auth = context.read<AuthProvider>();
+
+  //             await context.read<AttendanceProvider>().submitIzin(
+  //                   type: selected,
+  //                   alasan: reasonCtrl.text,
+  //                   email: auth.userEmail!,
+  //                   nama: auth.userName!,
+  //                 );
+
+  //             Navigator.pop(context);
+  //           },
+  //           child: const Text('Kirim'),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  /// =======================
+  /// UI UTIL
+  /// =======================
   Widget _tabButton(
     String text,
     bool active,
@@ -471,9 +490,8 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Container(
           height: 40,
           decoration: BoxDecoration(
-            color: active
-                ? const Color(0xFF6EE7F9)
-                : Colors.transparent,
+            color:
+                active ? const Color(0xFF6EE7F9) : Colors.transparent,
             borderRadius: BorderRadius.circular(30),
           ),
           child: Center(

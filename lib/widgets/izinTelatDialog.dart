@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 
 import '../providers/AttendanceProvider.dart';
 import '../providers/AuthProvider.dart';
+import '../widgets/IzinTidakHadirDialog.dart';
+import '../widgets/izinHadirSiangDialog.dart';
 
 class IzinTelatDialog extends StatefulWidget {
   const IzinTelatDialog({super.key});
@@ -28,11 +30,15 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
   }
 
   /// =======================
-  /// PICK DOCUMENT
+  /// PICK DOCUMENT (CAMERA)
   /// =======================
   Future<void> _pickDocument() async {
     final picker = ImagePicker();
-    final result = await picker.pickImage(source: ImageSource.gallery);
+    final result = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 75,
+      preferredCameraDevice: CameraDevice.front,
+    );
 
     if (result != null) {
       setState(() {
@@ -44,16 +50,25 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
   /// =======================
   /// SUBMIT TELAT
   /// =======================
-  Future<void> _submit() async {
+  Future<void> _submitTelat() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_dokumentasi == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Dokumentasi wajib diambil melalui kamera'),
+        ),
+      );
+      return;
+    }
 
     setState(() => _submitting = true);
 
-    final attendanceProvider = context.read<AttendanceProvider>();
+    final attendance = context.read<AttendanceProvider>();
     final auth = context.read<AuthProvider>();
 
-    final success = await attendanceProvider.submitAttendance(
-      image: File('dummy'), // kamera sudah diproses sebelumnya
+    final success = await attendance.submitAttendance(
+      image: File('dummy'), // fingerprint sudah diproses sebelumnya
       email: auth.userEmail!,
       nama: auth.userName!,
       keteranganTelat: _keteranganController.text.trim(),
@@ -68,10 +83,7 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Anda sudah melakukan absensi dengan status: TELAT\n'
-            'Mohon jangan diulangi kembali!',
-          ),
+          content: Text('Absensi berhasil dengan status: TELAT'),
         ),
       );
     } else {
@@ -87,7 +99,6 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: Colors.white,
       title: const Text(
         'Anda Terlambat',
         style: TextStyle(
@@ -95,65 +106,131 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
           color: Colors.blue,
         ),
       ),
-      content: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Silakan isi keterangan keterlambatan Anda.',
-              ),
-              const SizedBox(height: 12),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Silakan isi keterangan keterlambatan '
+              'dan ambil dokumentasi melalui kamera.',
+            ),
+            const SizedBox(height: 12),
 
-              /// KETERANGAN
-              TextFormField(
-                controller: _keteranganController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Keterangan Telat',
-                  hintText: 'Contoh: Ban bocor, hujan deras',
-                  border: OutlineInputBorder(),
-                ),
-                validator: (v) {
-                  if (v == null || v.trim().isEmpty) {
-                    return 'Keterangan wajib diisi';
-                  }
-                  return null;
-                },
-              ),
+            /// =======================
+            /// FORM
+            /// =======================
+            Form(
+              key: _formKey,
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _keteranganController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Keterangan Telat',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty
+                            ? 'Keterangan wajib diisi'
+                            : null,
+                  ),
+                  const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
+                  /// =======================
+                  /// DOKUMENTASI CAMERA
+                  /// =======================
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Dokumentasi (Kamera)',
+                      style: TextStyle(color: Colors.grey.shade700),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
 
-              /// DOKUMENTASI
-              Text(
-                'Dokumentasi (Opsional)',
-                style: TextStyle(color: Colors.grey.shade700),
+                  OutlinedButton.icon(
+                    onPressed: _pickDocument,
+                    icon: const Icon(Icons.camera_alt),
+                    label: Text(
+                      _dokumentasi == null
+                          ? 'Ambil Foto'
+                          : 'Foto Berhasil Diambil',
+                    ),
+                  ),
+
+                  /// =======================
+                  /// PREVIEW FOTO (RASIO FIX)
+                  /// =======================
+                  if (_dokumentasi != null) ...[
+                    const SizedBox(height: 10),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: AspectRatio(
+                        aspectRatio: 3 / 4, // ✅ RASIO KAMERA PORTRAIT
+                        child: Image.file(
+                          _dokumentasi!,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-              const SizedBox(height: 6),
-              OutlinedButton.icon(
-                onPressed: _pickDocument,
-                icon: const Icon(Icons.upload_file, color: Colors.blue),
-                label: Text(
-                  _dokumentasi == null
-                      ? 'Upload Dokumentasi'
-                      : 'Dokumentasi Dipilih',
-                ),
-              ),
-            ],
-          ),
+            ),
+
+            const SizedBox(height: 20),
+            const Divider(),
+
+            /// =======================
+            /// IZIN LAIN
+            /// =======================
+            const Text(
+              'Atau pilih jenis izin lain:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.event_busy, color: Colors.red),
+              title: const Text('Izin Tidak Hadir'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => IzinTidakHadirDialog(
+                    userEmail: context.read<AuthProvider>().userEmail!,
+                  ),
+                );
+              },
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.access_time, color: Colors.orange),
+              title: const Text('Hadir Masuk Siang'),
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => const HadirSiangDialog(),
+                );
+              },
+            ),
+          ],
         ),
       ),
+
+      /// =======================
+      /// ACTIONS
+      /// =======================
       actions: [
         TextButton(
           onPressed: _submitting ? null : () => Navigator.pop(context),
           child: const Text('Batal'),
         ),
         ElevatedButton(
-          onPressed: _submitting ? null : _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-          ),
+          onPressed: (_submitting || _dokumentasi == null)
+              ? null
+              : _submitTelat,
           child: _submitting
               ? const SizedBox(
                   height: 18,
@@ -163,7 +240,7 @@ class _IzinTelatDialogState extends State<IzinTelatDialog> {
                     color: Colors.white,
                   ),
                 )
-              : const Text('Kirim'),
+              : const Text('Kirim Telat'),
         ),
       ],
     );

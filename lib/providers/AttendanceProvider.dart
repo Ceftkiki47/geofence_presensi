@@ -35,6 +35,7 @@ enum DailyAttendanceStatus {
   alpha,
 }
 
+
 enum IzinType {
   tidakHadir,
   telat,
@@ -110,7 +111,7 @@ class AttendanceProvider extends ChangeNotifier {
     final minute = now.minute;
     final totalMinute = hour * 60 + minute;
 
-    if (totalMinute < 6 * 60) {
+    if (totalMinute > 7 * 60) {
       return AttendanceTimeStatus.alpha;
     }
     if (totalMinute <= 7 * 60 + 55) {
@@ -119,7 +120,7 @@ class AttendanceProvider extends ChangeNotifier {
     if (totalMinute <= 8 * 60 + 5) {
       return AttendanceTimeStatus.tepatWaktu;
     }
-    if (totalMinute <= 21 * 60 + 50) {
+    if (totalMinute <= 2 * 60 + 50) {
       return AttendanceTimeStatus.telat;
     }
     return AttendanceTimeStatus.alpha;
@@ -293,6 +294,46 @@ class AttendanceProvider extends ChangeNotifier {
     notifyListeners();
     return true;
   }
+
+  /// =======================
+  /// IZIN SIANG
+  /// =======================
+  Future<bool> submitHadirSiang({
+    required String email,
+    required String nama,
+    required String alasan,
+  }) async {
+    if (!canSubmitAttendance(email)) return false;
+
+    final now = DateTime.now();
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await GoogleSheetService.appendAttendance(
+        email: email,
+        nama: nama,
+        tanggal: DateFormat('yyyy-MM-dd').format(now),
+        jam: DateFormat('HH:mm:ss').format(now),
+        status: DailyAttendanceStatus.hadirSiang.name,
+        latitude: userLocation?.latitude ?? 0,
+        longitude: userLocation?.longitude ?? 0,
+        zona: isInsideZone ? 'DALAM' : 'LUAR',
+        keterangan: alasan,
+      );
+
+      _dailyStatus[email] = DailyAttendanceStatus.hadirSiang;
+      _dailyDate[email] = now;
+
+      return true;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+
 
   /// =======================
   /// AUTO ALPHA
