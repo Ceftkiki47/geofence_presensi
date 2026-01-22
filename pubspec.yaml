@@ -55,6 +55,7 @@ dependencies:
   crypto: ^3.0.7
   auto_route: ^11.1.0
   flutter_localization: ^0.3.3
+  flutter_secure_storage: ^10.0.0
 
 
 dev_dependencies:

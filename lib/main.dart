@@ -8,7 +8,7 @@ import 'providers/AttendanceProvider.dart';
 import 'app_gate.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();  
   await initializeDateFormatting('id_ID', null);
 
   runApp(

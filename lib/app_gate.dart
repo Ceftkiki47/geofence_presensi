@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import 'providers/AuthProvider.dart';
 
+
 @RoutePage()
 class AppGateScreen extends StatelessWidget {
   const AppGateScreen({super.key});
@@ -36,4 +37,6 @@ class AppGateScreen extends StatelessWidget {
     // 4️⃣ SUDAH LOGIN & ADA PIN → HOME + BOTTOM NAV
     return const MainNavigationScreen();
   }
+
+  
 }
