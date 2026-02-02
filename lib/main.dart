@@ -8,18 +8,15 @@ import 'providers/AttendanceProvider.dart';
 import 'app_gate.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();  
+  WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(
-          create: (_) => AuthProvider()..checkLogin(),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => AttendanceProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => AuthProvider()..checkLogin()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => AttendanceProvider()),
       ],
       child: const MyApp(),
     ),
@@ -40,10 +37,7 @@ class MyApp extends StatelessWidget {
 
       /// 🔑 WAJIB untuk DatePicker & Locale
       locale: const Locale('id', 'ID'),
-      supportedLocales: const [
-        Locale('id', 'ID'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

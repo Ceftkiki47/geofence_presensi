@@ -10,7 +10,6 @@ import 'package:provider/provider.dart';
 
 import 'providers/AuthProvider.dart';
 
-
 @RoutePage()
 class AppGateScreen extends StatelessWidget {
   const AppGateScreen({super.key});
@@ -19,10 +18,10 @@ class AppGateScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    // 1️⃣ APP BELUM SIAP
-    if (!auth.isInitialized) {
-      return const SplashScreen();
-    }
+    // // 1️⃣ APP BELUM SIAP
+    // if (!auth.isInitialized) {
+    //   return const SplashScreen();
+    // }
 
     // 2️⃣ BELUM LOGIN
     if (!auth.isLoggedIn) {
@@ -37,6 +36,4 @@ class AppGateScreen extends StatelessWidget {
     // 4️⃣ SUDAH LOGIN & ADA PIN → HOME + BOTTOM NAV
     return const MainNavigationScreen();
   }
-
-  
 }

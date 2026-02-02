@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../database/db_helper.dart';
 import '../utils/PinUtils.dart';
-import '../utils/DebugLog.dart';
+import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   bool isLoading = false;
@@ -16,6 +17,7 @@ class AuthProvider extends ChangeNotifier {
   bool get hasPin => _hasPin;
   bool get pinVerified => _pinVerified;
 
+  String errorMessage = '';
   String? userEmail;
   String? userName;
   String? profileImage;
@@ -43,7 +45,7 @@ class AuthProvider extends ChangeNotifier {
     debugPrint('🔐 checkLogin() START');
 
     final db = await DBHelper.database;
-    
+
     // Reset semua isLogin ke 0 untuk memastikan app selalu mulai dari login
     // Ini mencegah app langsung masuk ke PIN verification saat restart
     await db.update('users', {'isLogin': 0});
@@ -51,8 +53,10 @@ class AuthProvider extends ChangeNotifier {
     // Reset state ke logged out
     // Ini memastikan AppGate akan menampilkan LoginScreen
     _resetState();
-    
-    debugPrint('🔐 checkLogin(): State di-reset, app akan mulai dari LoginScreen');
+
+    debugPrint(
+      '🔐 checkLogin(): State di-reset, app akan mulai dari LoginScreen',
+    );
 
     _initialized = true;
     notifyListeners();
@@ -62,11 +66,7 @@ class AuthProvider extends ChangeNotifier {
   // =======================
   // REGISTER
   // =======================
-  Future<String?> register(
-    String email,
-    String password,
-    String nama,
-  ) async {
+  Future<String?> register(String email, String password, String nama) async {
     final db = await DBHelper.database;
 
     final exists = await isEmailExists(email);
@@ -86,52 +86,80 @@ class AuthProvider extends ChangeNotifier {
   // =======================
   // LOGIN
   // =======================
+  /// HELPER
+  // =======================
+
+  void _setLoading(bool value, {required String context}) {
+    isLoading = value;
+    debugPrint('⏳ Loading = $value [$context]');
+    notifyListeners();
+  }
+
   Future<bool> login(String email, String password) async {
-    debugPrint('🔐 login() CALLED → $email');
+    debugPrint('🔐 [AUTH] API login() CALLED → $email');
 
     isLoading = true;
+    errorMessage = '';
     notifyListeners();
-    _logState('login:start');
 
-    final db = await DBHelper.database;
-    final res = await db.query(
-      'users',
-      where: 'email = ? AND password = ?',
-      whereArgs: [email, password],
-      limit: 1,
-    );
+    try {
+      // ===============================
+      // CALL AUTH SERVICE
+      // ===============================
+      final data = await AuthService().login(email, password);
 
-    if (res.isEmpty) {
-      debugPrint('🔐 login(): gagal');
+      // ===============================
+      // LOG RESPONSE (DIJAGA)
+      // ===============================
+      debugPrint('🌐 Status Code: 200');
+      debugPrint('📦 Response: $data');
+
+      // ===============================
+      // VALIDASI RESPONSE
+      // ===============================
+      if (data['token'] == null || data['user'] == null) {
+        errorMessage = 'Response tidak valid';
+        debugPrint('❌ [AUTH] Login FAILED');
+        return false;
+      }
+
+      final token = data['token'];
+      final user = data['user'];
+
+      // ===============================
+      // SAVE SESSION
+      // ===============================
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', token);
+      await prefs.setString('user_name', user['name']);
+      await prefs.setString('user_email', user['email']);
+      await prefs.setString('user_role', user['role']);
+
+      _loggedIn = true;
+
+      // ===============================
+      // SUCCESS LOG
+      // ===============================
+      debugPrint('✅ [AUTH] Login SUCCESS');
+      debugPrint('🔑 Token saved');
+      debugPrint('👤 User: ${user['name']}');
+
+      return true;
+    } catch (e, stackTrace) {
+      // ===============================
+      // ERROR HANDLING
+      // ===============================
+      errorMessage = e.toString().replaceAll('Exception: ', '');
+
+      debugPrint('🔥 [AUTH] ERROR');
+      debugPrint('❗ $e');
+      debugPrint('📌 $stackTrace');
+
+      return false;
+    } finally {
       isLoading = false;
       notifyListeners();
-      _logState('login:failed');
-      return false;
     }
-
-    final user = res.first;
-
-    await db.update('users', {'isLogin': 0});
-    await db.update(
-      'users',
-      {'isLogin': 1},
-      where: 'email = ?',
-      whereArgs: [email],
-    );
-
-    _loggedIn = true;
-    _hasPin = user['pin'] != null;
-    _pinVerified = false;
-
-    userEmail = user['email'] as String?;
-    userName = user['nama'] as String?;
-    profileImage = user['profileImage'] as String?;
-
-    isLoading = false;
-    notifyListeners();
-    _logState('login:success');
-
-    return true;
   }
 
   // =======================
@@ -143,11 +171,7 @@ class AuthProvider extends ChangeNotifier {
     final db = await DBHelper.database;
     final hashed = hashPin(pin);
 
-    await db.update(
-      'users',
-      {'pin': hashed},
-      where: 'isLogin = 1',
-    );
+    await db.update('users', {'pin': hashed}, where: 'isLogin = 1');
 
     _hasPin = true;
     _pinVerified = false;
@@ -210,11 +234,7 @@ class AuthProvider extends ChangeNotifier {
   // =======================
   Future<bool> isEmailExists(String email) async {
     final db = await DBHelper.database;
-    final res = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email],
-    );
+    final res = await db.query('users', where: 'email = ?', whereArgs: [email]);
     return res.isNotEmpty;
   }
 
@@ -224,11 +244,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> updateProfileImage(String path) async {
     final db = await DBHelper.database;
 
-    await db.update(
-      'users',
-      {'profileImage': path},
-      where: 'isLogin = 1',
-    );
+    await db.update('users', {'profileImage': path}, where: 'isLogin = 1');
 
     profileImage = path;
     notifyListeners();
@@ -247,19 +263,12 @@ class AuthProvider extends ChangeNotifier {
     if (newPass != confirmPass) return 'Konfirmasi password tidak cocok';
 
     final db = await DBHelper.database;
-    final user = await db.query(
-      'users',
-      where: 'isLogin = 1',
-    );
+    final user = await db.query('users', where: 'isLogin = 1');
 
     if (user.isEmpty) return 'User tidak ditemukan';
     if (user.first['password'] != oldPass) return 'Password lama salah';
 
-    await db.update(
-      'users',
-      {'password': newPass},
-      where: 'isLogin = 1',
-    );
+    await db.update('users', {'password': newPass}, where: 'isLogin = 1');
 
     _logState('changePassword');
     return 'Password berhasil diubah';
