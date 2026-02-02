@@ -6,7 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../screens/MainMapScreen.dart';
 import '../services/GoogleSheetService.dart';
-import '../model/ModelTask.dart';
+// import '../models/ModelTask.dart';
 
 /// =======================
 /// ENUM
@@ -27,11 +27,12 @@ enum AttendanceAccessStatus {
   izinLocked,
   alpha,
   pulang,
-  lembur, 
+  lembur,
   notAllowed,
 }
+
 enum DailyAttendanceStatus {
-  none,            // belum melakukan apa pun hari ini
+  none, // belum melakukan apa pun hari ini
   hadir,
   telat,
   hadirSiang,
@@ -40,30 +41,17 @@ enum DailyAttendanceStatus {
   pulang,
   lembur,
 }
-enum AttendancePhase {
-  checkIn,
-  checkOut,
-  locked,
-}
 
+enum AttendancePhase { checkIn, checkOut, locked }
 
-enum IzinType {
-  tidakHadir,
-  telat,
-  hadirSiang,
-}
+enum IzinType { tidakHadir, telat, hadirSiang }
 
 enum GlobalAccessTime {
-  locked,   //jam 9 malam
-  active    //jam 6.pagi - 8 malam
+  locked, //jam 9 malam
+  active, //jam 6.pagi - 8 malam
 }
 
-enum CheckoutTimeStatus {
-  notAllowed,
-  pulangNormal,
-  lembur,
-}
-
+enum CheckoutTimeStatus { notAllowed, pulangNormal, lembur }
 
 String mapIzinType(IzinType type) {
   switch (type) {
@@ -124,7 +112,7 @@ class AttendanceProvider extends ChangeNotifier {
   bool isIzinTidakHadirToday(String email) {
     return todayStatus(email) == DailyAttendanceStatus.izinTidakHadir;
   }
-  
+
   /// =======================
   /// MENENTUKAN JAM ABSENSI DAN PULANG
   /// =======================
@@ -166,7 +154,7 @@ class AttendanceProvider extends ChangeNotifier {
     if (totalMinute <= 13 * 60) {
       return AttendanceTimeStatus.hadirSiang;
     }
-      return AttendanceTimeStatus.alpha;
+    return AttendanceTimeStatus.alpha;
   }
 
   /// =======================
@@ -191,13 +179,10 @@ class AttendanceProvider extends ChangeNotifier {
     return CheckoutTimeStatus.notAllowed;
   }
 
-
   /// =======================
   /// MAPPING STATUS
-  /// ======================= 
-  DailyAttendanceStatus? mapToDailyStatus(
-    AttendanceTimeStatus status,
-  ) {
+  /// =======================
+  DailyAttendanceStatus? mapToDailyStatus(AttendanceTimeStatus status) {
     switch (status) {
       case AttendanceTimeStatus.datangLebihAwal:
       case AttendanceTimeStatus.tepatWaktu:
@@ -213,7 +198,6 @@ class AttendanceProvider extends ChangeNotifier {
         return DailyAttendanceStatus.alpha;
     }
   }
-
 
   /// =======================
   /// LOKASI
@@ -279,8 +263,6 @@ class AttendanceProvider extends ChangeNotifier {
     return AttendanceAccessStatus.notAllowed;
   }
 
-
-
   /// =======================
   /// SUBMIT ABSENSI
   /// =======================
@@ -329,7 +311,6 @@ class AttendanceProvider extends ChangeNotifier {
     }
   }
 
-
   /// =======================
   /// IZIN
   /// =======================
@@ -341,8 +322,8 @@ class AttendanceProvider extends ChangeNotifier {
   }) async {
     if (alasan.isEmpty) return false;
     if (!canSubmitIzin(email)) return false;
-    if (getAttendanceTimeStatus(DateTime.now()) ==
-        AttendanceTimeStatus.alpha) return false;
+    if (getAttendanceTimeStatus(DateTime.now()) == AttendanceTimeStatus.alpha)
+      return false;
 
     await GoogleSheetService.insertIzin(
       tanggal: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -428,64 +409,63 @@ class AttendanceProvider extends ChangeNotifier {
   /// =======================
   /// SUBMIT PULANG
   /// =======================
-  Future<bool> submitCheckout({
-    required File image,
-    required String email,
-    required String nama,
-    required List<TaskItem> tasks,
-  }) async {
-    if (alreadySubmittedToday(email)) return false;
+  // Future<bool> submitCheckout({
+  //   required File image,
+  //   required String email,
+  //   required String nama,
+  //   required List<TaskItem> tasks,
+  // }) async {
+  //   if (alreadySubmittedToday(email)) return false;
 
-    final now = DateTime.now();
-    final checkoutStatus = getCheckoutTimeStatus(now);
+  //   final now = DateTime.now();
+  //   final checkoutStatus = getCheckoutTimeStatus(now);
 
-    if (checkoutStatus == CheckoutTimeStatus.notAllowed) {
-      return false;
-    }
+  //   if (checkoutStatus == CheckoutTimeStatus.notAllowed) {
+  //     return false;
+  //   }
 
-    isLoading = true;
-    notifyListeners();
+  //   isLoading = true;
+  //   notifyListeners();
 
-    try {
-      final status = checkoutStatus == CheckoutTimeStatus.pulangNormal
-          ? DailyAttendanceStatus.pulang
-          : DailyAttendanceStatus.lembur;
+  //   try {
+  //     final status = checkoutStatus == CheckoutTimeStatus.pulangNormal
+  //         ? DailyAttendanceStatus.pulang
+  //         : DailyAttendanceStatus.lembur;
 
-      /// 🔹 SIMPAN ABSENSI PULANG
-      await GoogleSheetService.appendAttendance(
-        email: email,
-        nama: nama,
-        tanggal: DateFormat('yyyy-MM-dd').format(now),
-        jam: DateFormat('HH:mm:ss').format(now),
-        status: status.name,
-        latitude: userLocation?.latitude ?? 0,
-        longitude: userLocation?.longitude ?? 0,
-        zona: isInsideZone ? 'DALAM' : 'LUAR',
-        keterangan: checkoutStatus == CheckoutTimeStatus.lembur
-            ? 'LEMBUR'
-            : 'PULANG',
-      );
+  //     /// 🔹 SIMPAN ABSENSI PULANG
+  //     await GoogleSheetService.appendAttendance(
+  //       email: email,
+  //       nama: nama,
+  //       tanggal: DateFormat('yyyy-MM-dd').format(now),
+  //       jam: DateFormat('HH:mm:ss').format(now),
+  //       status: status.name,
+  //       latitude: userLocation?.latitude ?? 0,
+  //       longitude: userLocation?.longitude ?? 0,
+  //       zona: isInsideZone ? 'DALAM' : 'LUAR',
+  //       keterangan: checkoutStatus == CheckoutTimeStatus.lembur
+  //           ? 'LEMBUR'
+  //           : 'PULANG',
+  //     );
 
-      /// 🔹 SIMPAN TASK
-      // for (final task in tasks) {
-      //   await GoogleSheetService.insertTask(
-      //     email: email,
-      //     tanggal: DateFormat('yyyy-MM-dd').format(now),
-      //     task: task.title,
-      //     status: task.status.name,
-      //   );
-      // }
+  //     /// 🔹 SIMPAN TASK
+  //     // for (final task in tasks) {
+  //     //   await GoogleSheetService.insertTask(
+  //     //     email: email,
+  //     //     tanggal: DateFormat('yyyy-MM-dd').format(now),
+  //     //     task: task.title,
+  //     //     status: task.status.name,
+  //     //   );
+  //     // }
 
-      _dailyStatus[email] = status;
-      _dailyDate[email] = now;
+  //     _dailyStatus[email] = status;
+  //     _dailyDate[email] = now;
 
-      return true;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
-
+  //     return true;
+  //   } finally {
+  //     isLoading = false;
+  //     notifyListeners();
+  //   }
+  // }
 
   /// =======================
   /// AUTO ALPHA
@@ -521,7 +501,6 @@ class AttendanceProvider extends ChangeNotifier {
 
     notifyListeners();
   }
-
 
   /// =======================
   /// RESET

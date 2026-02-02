@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../providers/AttendanceProvider.dart';
-import '../../model/ModelTask.dart';
+import '../../models/ModelTask.dart';
 import '../task/TaskDialog.dart';
 
 class TaskItemCard extends StatelessWidget {

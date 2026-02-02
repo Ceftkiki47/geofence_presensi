@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../providers/AttendanceProvider.dart';
-import '../../model/ModelTask.dart';
+import '../../models/ModelTask.dart';
 import '../task/TaskItemCard.dart';
 
 class TaskBottomSheet extends StatefulWidget {
   final Future<void> Function(List<TaskItem>) onSubmit;
 
-  const TaskBottomSheet({
-    super.key,
-    required this.onSubmit,
-  });
+  const TaskBottomSheet({super.key, required this.onSubmit});
 
   @override
   State<TaskBottomSheet> createState() => _TaskBottomSheetState();
@@ -21,12 +18,7 @@ class _TaskBottomSheetState extends State<TaskBottomSheet> {
 
   void _addTask() {
     setState(() {
-      tasks.add(
-        TaskItem(
-          title: '',
-          status: TaskStatus.inProgress,
-        ),
-      );
+      tasks.add(TaskItem(title: '', status: TaskStatus.inProgress));
     });
   }
 
@@ -69,10 +61,7 @@ class _TaskBottomSheetState extends State<TaskBottomSheet> {
                 'Task Hari Ini',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              IconButton(
-                onPressed: _addTask,
-                icon: const Icon(Icons.add),
-              ),
+              IconButton(onPressed: _addTask, icon: const Icon(Icons.add)),
             ],
           ),
 
